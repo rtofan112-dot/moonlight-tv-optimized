@@ -125,6 +125,14 @@ int vdec_delegate_setup(int videoFormat, int width, int height, int redrawRate, 
             HLunaServiceCallSync("luna://com.webos.settingsservice/setSystemSettings",
                                  "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"hdrGame\"}}",
                                  true, NULL);
+                                 
+            // Alternative method for webOS 22 (QNED7S6QA etc) where settingsservice might not work
+            HLunaServiceCallSync("luna://com.webos.service.tv.picture/setPictureMode",
+                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"game\"}}",
+                                 true, NULL);
+            HLunaServiceCallSync("luna://com.webos.service.tv.picture/setPictureMode",
+                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"hdrGame\"}}",
+                                 true, NULL);
 #endif
             return 0;
         }
