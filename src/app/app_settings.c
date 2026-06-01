@@ -51,8 +51,8 @@ void settings_initialize(app_settings_t *config, char *conf_dir) {
     config->debug_level = 0;
     set_string(&config->language, "auto");
 #if TARGET_WEBOS
-    set_string(&config->audio_backend, "ndl");
-    set_string(&config->decoder, "smp");
+    set_string(&config->audio_backend, "smp");
+    set_string(&config->decoder, "ndl");
 #else
     set_string(&config->audio_backend, "auto");
     set_string(&config->decoder, "auto");
@@ -275,15 +275,7 @@ static int settings_parse(app_settings_t *config, const char *section, const cha
     } else if (INI_NAME_MATCH("syskey_capture")) {
         config->syskey_capture = INI_IS_TRUE(value);
     } else if (INI_FULL_MATCH("video", "decoder")) {
-#if TARGET_WEBOS
-        if (strcmp(value, "ndl") == 0) {
-            set_string(&config->decoder, "smp");
-        } else {
-            set_string(&config->decoder, value);
-        }
-#else
         set_string(&config->decoder, value);
-#endif
     } else if (INI_FULL_MATCH("audio", "backend")) {
         set_string(&config->audio_backend, value);
     } else if (INI_FULL_MATCH("audio", "device")) {

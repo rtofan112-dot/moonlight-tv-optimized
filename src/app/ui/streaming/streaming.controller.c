@@ -81,11 +81,11 @@ bool streaming_refresh_stats() {
     lv_label_set_text_fmt(controller->stats_items.audio, "%s, %s (%s)", audio_stream_info.format,
                           audio_stream_info.channels, SS4S_ModuleInfoGetId(app->ss4s.selection.audio_module));
     lv_label_set_text_fmt(controller->stats_items.rtt, "%d ms (var. %d ms)", dst->rtt, dst->rttVariance);
-    lv_label_set_text_fmt(controller->stats_items.net_fps, "%.2f FPS", dst->receivedFps);
+    lv_label_set_text_fmt(controller->stats_items.net_fps, "Net: %.2f, Dec: %.2f FPS", dst->receivedFps, dst->decodedFps);
 
     if (dst->submittedFrames) {
-        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%%",
-                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100);
+        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%% (%d drops)",
+                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100, dst->networkDroppedFrames);
         if (vdec_stream_info.has_host_latency) {
             float avgCapLatency = (float) dst->totalCaptureLatency / (float) dst->submittedFrames / 10.0f;
             lv_label_set_text_fmt(controller->stats_items.host_latency, "avg %.2f ms", avgCapLatency);
