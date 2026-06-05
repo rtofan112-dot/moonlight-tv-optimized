@@ -7,9 +7,10 @@ on:
       - 'v*.*.*'
     branches:
       - '**'
+  workflow_dispatch:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
+  BUILD_TYPE: Debug
 
 jobs:
   build:
@@ -40,7 +41,7 @@ jobs:
         with:
           repository: "webosbrew/dev-toolbox-cli"
           latest: true
-          fileName: "webosbrew-toolbox-*_amd64.deb"
+          fileName: "webosbrew-toolbox-*.deb"
           out-file-path: "temp"
 
       - name: Update Packages
@@ -48,6 +49,11 @@ jobs:
 
       - name: Install Tools
         run: sudo apt-get install ./temp/*.deb
+
+      - name: Apply NDL Video and Player Patches
+        run: |
+          cp scripts/ndl_video_patch.c third_party/ss4s/modules/webos/ndl/webos5/ndl_video.c
+          cp scripts/ndl_player_patch.c third_party/ss4s/modules/webos/ndl/webos5/ndl_player.c
 
       - name: webOS Build
         uses: ./.github/actions/build-webos
