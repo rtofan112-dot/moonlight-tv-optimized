@@ -17,10 +17,6 @@
 #include <SDL.h>
 #include <assert.h>
 
-#ifdef TARGET_WEBOS
-#include "lunasynccall.h"
-#endif
-
 // Starting capacity for the decode-unit reassembly buffer. Grows on
 // demand to accommodate larger frames (e.g. 4K IDR frames at high
 // bitrate routinely exceed 2 MB), capped to keep a malformed stream
@@ -115,25 +111,6 @@ int vdec_delegate_setup(int videoFormat, int width, int height, int redrawRate, 
 
     switch (SS4S_PlayerVideoOpen(player, &info)) {
         case SS4S_VIDEO_OPEN_OK: {
-#ifdef TARGET_WEBOS
-            // Programmatically force webOS to activate "Game" (Game Optimizer / Low Latency) picture presets.
-            // This bypasses the HDMI-only Game Mode restriction for native homebrew apps.
-            commons_log_info("Session", "Forcing webOS pictureMode to 'game' (Game Optimizer / Low Latency)...");
-            HLunaServiceCallSync("luna://com.webos.settingsservice/setSystemSettings",
-                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"game\"}}",
-                                 true, NULL);
-            HLunaServiceCallSync("luna://com.webos.settingsservice/setSystemSettings",
-                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"hdrGame\"}}",
-                                 true, NULL);
-                                 
-            // Alternative method for webOS 22 (QNED7S6QA etc) where settingsservice might not work
-            HLunaServiceCallSync("luna://com.webos.service.tv.picture/setPictureMode",
-                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"game\"}}",
-                                 true, NULL);
-            HLunaServiceCallSync("luna://com.webos.service.tv.picture/setPictureMode",
-                                 "{\"category\":\"picture\",\"settings\":{\"pictureMode\":\"hdrGame\"}}",
-                                 true, NULL);
-#endif
             return 0;
         }
         case SS4S_VIDEO_OPEN_UNSUPPORTED_CODEC:
@@ -183,8 +160,8 @@ int vdec_delegate_submit(PDECODE_UNIT decodeUnit) {
         vdec_temp_stats.totalFrames += decodeUnit->frameNumber - (lastFrameNumber + 1);
         lastFrameNumber = decodeUnit->frameNumber;
     }
-    // Flip stats windows every 250ms for ultra-responsive real-time statistics
-    if (ticksms - vdec_temp_stats.measurementStartTimestamp > 250) {
+    // Flip stats windows roughly every second
+    if (ticksms - vdec_temp_stats.measurementStartTimestamp > 1000) {
         vdec_stat_submit(&vdec_temp_stats, ticksms);
 
         // Move this window into the last window slot and clear it for next window
@@ -198,16 +175,24 @@ int vdec_delegate_submit(PDECODE_UNIT decodeUnit) {
     vdec_temp_stats.totalCaptureLatency += decodeUnit->frameHostProcessingLatency;
     vdec_temp_stats.totalReassemblyTime += decodeUnit->enqueueTimeMs - decodeUnit->receiveTimeMs;
     vdec_stream_info.has_host_latency |= decodeUnit->frameHostProcessingLatency > 0;
-    size_t length = 0;
-    for (PLENTRY entry = decodeUnit->bufferList; entry != NULL; entry = entry->next) {
-        memcpy(buffer + length, entry->data, entry->length);
-        length += entry->length;
-    }
     SS4S_VideoFeedFlags flags = SS4S_VIDEO_FEED_DATA_FRAME_START | SS4S_VIDEO_FEED_DATA_FRAME_END;
     if (decodeUnit->frameType == FRAME_TYPE_IDR) {
         flags |= SS4S_VIDEO_FEED_DATA_KEYFRAME;
     }
-    SS4S_VideoFeedResult result = SS4S_PlayerVideoFeed(player, buffer, length, flags);
+    SS4S_VideoFeedResult result;
+    if (decodeUnit->bufferList->next == NULL) {
+        // Zero-copy: единственный буфер — передаём данные напрямую, без memcpy
+        result = SS4S_PlayerVideoFeed(player, (unsigned char *) decodeUnit->bufferList->data,
+                                       decodeUnit->bufferList->length, flags);
+    } else {
+        // Несколько буферов — собираем в один (I-кадры и split-фреймы)
+        size_t length = 0;
+        for (PLENTRY entry = decodeUnit->bufferList; entry != NULL; entry = entry->next) {
+            memcpy(buffer + length, entry->data, entry->length);
+            length += entry->length;
+        }
+        result = SS4S_PlayerVideoFeed(player, buffer, length, flags);
+    }
     if (result == SS4S_VIDEO_FEED_OK) {
         if (vdec_stream_info.width == 0 || vdec_stream_info.height == 0) {
             stream_info_parse_size(decodeUnit, &vdec_stream_info);
