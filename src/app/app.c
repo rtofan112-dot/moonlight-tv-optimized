@@ -14,6 +14,7 @@
 #include "backend/backend_root.h"
 #include "stream/session.h"
 #include "ui/root.h"
+#include "ui/streaming/streaming.controller.h"
 #include "util/bus.h"
 #include "util/user_event.h"
 #include "util/i18n.h"
@@ -33,6 +34,8 @@ static void quit_confirm_cb(lv_event_t *e);
 static void libs_init(app_t *app, int argc, char *argv[]);
 
 app_t *global = NULL;
+uint32_t last_mouse_activity = 0;
+
 
 
 int app_init(app_t *app, app_settings_loader *settings_loader, int argc, char *argv[]) {
@@ -129,7 +132,21 @@ void app_deinit(app_t *app) {
 
 void app_run_loop(app_t *app) {
     app_process_events(app);
-    lv_task_handler();
+    static uint32_t last_lv_update = 0;
+    uint32_t now = SDL_GetTicks();
+    // Если оверлей закрыт и идет активный стриминг, опрашиваем UI гораздо реже для разгрузки CPU.
+    // Но если в последние 2 секунды двигали мышь/пульт, то опрашиваем на полной частоте (60Гц)
+    // для плавного перемещения курсора на экране.
+    bool recent_mouse = (now - last_mouse_activity < 2000);
+    if (app->session != NULL && !streaming_stats_shown() && !recent_mouse) {
+        if (now - last_lv_update >= 200) {
+            lv_task_handler();
+            last_lv_update = now;
+        }
+    } else {
+        lv_task_handler();
+        last_lv_update = now;
+    }
     SDL_Delay(1);
 }
 
@@ -240,7 +257,9 @@ static int app_event_filter(void *userdata, SDL_Event *event) {
         case SDL_CONTROLLERTOUCHPADUP:
         case SDL_CONTROLLERSENSORUPDATE:
         case SDL_TEXTINPUT: {
-            if (event->type == SDL_MOUSEMOTION) {
+            if (event->type == SDL_MOUSEMOTION || event->type == SDL_MOUSEBUTTONDOWN || 
+                event->type == SDL_MOUSEBUTTONUP || event->type == SDL_MOUSEWHEEL) {
+                last_mouse_activity = SDL_GetTicks();
                 bool updated = app_text_input_state_update(&app->ui.input);
                 if (updated && !app->ui.input.text_input_active && app->session != NULL) {
                     session_screen_keyboard_closed(app->session);
@@ -263,6 +282,7 @@ static int app_event_filter(void *userdata, SDL_Event *event) {
         }
         default:
             if (event->type == USER_REMOTEBUTTONEVENT) {
+                last_mouse_activity = SDL_GetTicks();
                 return 1;
             }
             return 0;
