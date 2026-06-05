@@ -35,7 +35,7 @@ lv_obj_t *streaming_scene_create(lv_fragment_t *self, lv_obj_t *parent) {
     lv_obj_clear_flag(overlay, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
 
-    int stats_w = LV_DPX(384);
+    int stats_w = LV_DPX(512);
     lv_disp_t *disp = lv_disp_get_default();
     int video_w = lv_disp_get_hor_res(disp) - LV_DPX(20) * 2 - LV_DPX(30) - stats_w;
     int video_h_pct = video_w * 100 / lv_disp_get_hor_res(disp);
