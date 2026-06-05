@@ -81,11 +81,11 @@ bool streaming_refresh_stats() {
     lv_label_set_text_fmt(controller->stats_items.audio, "%s, %s (%s)", audio_stream_info.format,
                           audio_stream_info.channels, SS4S_ModuleInfoGetId(app->ss4s.selection.audio_module));
     lv_label_set_text_fmt(controller->stats_items.rtt, "%d ms (var. %d ms)", dst->rtt, dst->rttVariance);
-    lv_label_set_text_fmt(controller->stats_items.net_fps, "Net: %.2f, Dec: %.2f FPS", dst->receivedFps, dst->decodedFps);
+    lv_label_set_text_fmt(controller->stats_items.net_fps, "%.2f FPS", dst->receivedFps);
 
     if (dst->submittedFrames) {
-        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%% (%d drops)",
-                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100, dst->networkDroppedFrames);
+        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%%",
+                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100);
         if (vdec_stream_info.has_host_latency) {
             float avgCapLatency = (float) dst->totalCaptureLatency / (float) dst->submittedFrames / 10.0f;
             lv_label_set_text_fmt(controller->stats_items.host_latency, "avg %.2f ms", avgCapLatency);
@@ -93,9 +93,13 @@ bool streaming_refresh_stats() {
             lv_label_set_text_fmt(controller->stats_items.host_latency, "not available");
         }
         if (vdec_stream_info.has_decoder_latency) {
-            float avgSubmitTime = (float) dst->totalSubmitTime / (float) dst->submittedFrames;
-            lv_label_set_text_fmt(controller->stats_items.vdec_latency, "avg %.2f ms",
-                                  avgSubmitTime + dst->avgDecoderLatency);
+            float avgSubmitTime = dst->submittedFrames > 0 ? (float) dst->totalSubmitTime / (float) dst->submittedFrames : 0.0f;
+            float avgReassemblyTime = dst->submittedFrames > 0 ? (float) dst->totalReassemblyTime / (float) dst->submittedFrames : 0.0f;
+            lv_label_set_text_fmt(controller->stats_items.vdec_latency, "%.1f ms (HW:%.1f Net:%.1f Q:%.1f)",
+                                  avgSubmitTime + dst->avgDecoderLatency,
+                                  dst->avgDecoderLatency,
+                                  avgReassemblyTime,
+                                  avgSubmitTime);
         } else {
             lv_label_set_text_fmt(controller->stats_items.vdec_latency, "not available");
         }
