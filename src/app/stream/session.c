@@ -317,7 +317,11 @@ void session_config_init(app_t *app, session_config_t *config, const SERVER_DATA
         config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
     }
 #endif
+#if TARGET_WEBOS
+    config->stream.encryptionFlags = 0;  // No encryption for local streaming on weak ARM
+#else
     config->stream.encryptionFlags = ENCFLG_AUDIO;
+#endif
 }
 
 /**

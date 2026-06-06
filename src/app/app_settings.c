@@ -45,7 +45,11 @@ void settings_initialize(app_settings_t *config, char *conf_dir) {
     config->stream.fps = 60;
     config->stream.bitrate = settings_optimal_bitrate(NULL, 1280, 720, 60);
     config->stream.packetSize = 1392;
+#if TARGET_WEBOS
+    config->stream.streamingRemotely = STREAM_CFG_LOCAL;
+#else
     config->stream.streamingRemotely = STREAM_CFG_AUTO;
+#endif
     config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
 
     config->debug_level = 0;
