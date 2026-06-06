@@ -55,7 +55,7 @@ void settings_initialize(app_settings_t *config, char *conf_dir) {
     config->debug_level = 0;
     set_string(&config->language, "auto");
 #if TARGET_WEBOS
-    set_string(&config->audio_backend, "smp");
+    set_string(&config->audio_backend, "ndl");
     set_string(&config->decoder, "ndl");
 #else
     set_string(&config->audio_backend, "auto");
