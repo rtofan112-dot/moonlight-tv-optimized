@@ -39,10 +39,8 @@ static bool GetCapabilities(SS4S_AudioCapabilities *capabilities, SS4S_AudioCode
 }
 
 static SS4S_AudioCodec GetPreferredCodecs(const SS4S_AudioInfo *info) {
-    if (info->numOfChannels == 6) {
-        return SS4S_AUDIO_OPUS;
-    }
-    return SS4S_AUDIO_PCM_S16LE;
+    (void) info;
+    return SS4S_AUDIO_OPUS;
 }
 
 static SS4S_AudioOpenResult OpenAudio(const SS4S_AudioInfo *info, SS4S_AudioInstance **instance,
