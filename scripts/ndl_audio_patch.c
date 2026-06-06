@@ -140,11 +140,13 @@ static SS4S_AudioFeedResult FeedAudio(SS4S_AudioInstance *instance, const unsign
         }
         data = SS4S_NDLOpusFixGetBuffer(context->opusFix);
         size = fixedSize;
-        rc = NDL_DirectAudioPlay((void *) data, size, 0);
+        uint64_t pts = SS4S_NDL_webOS5_GetPts(context);
+        rc = NDL_DirectAudioPlay((void *) data, size, (long long) pts);
         pthread_mutex_unlock(&SS4S_NDL_webOS5_Lock);
     } else {
         // Прямой вызов без мьютекса — минимальная задержка
-        rc = NDL_DirectAudioPlay((void *) data, size, 0);
+        uint64_t pts = SS4S_NDL_webOS5_GetPts(context);
+        rc = NDL_DirectAudioPlay((void *) data, size, (long long) pts);
     }
     if (rc != 0) {
         SS4S_NDL_webOS5_Log(SS4S_LogLevelWarn, "NDL", "NDL_DirectAudioPlay returned %d: %s", rc,
