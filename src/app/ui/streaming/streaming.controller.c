@@ -53,6 +53,7 @@ const lv_fragment_class_t streaming_controller_class = {
 
 static bool overlay_showing = false, overlay_pinned = false;
 static streaming_controller_t *current_controller = NULL;
+static uint32_t max_rtt = 0;
 
 bool streaming_overlay_shown() {
     return overlay_showing;
@@ -80,7 +81,10 @@ bool streaming_refresh_stats() {
     }
     lv_label_set_text_fmt(controller->stats_items.audio, "%s, %s (%s)", audio_stream_info.format,
                           audio_stream_info.channels, SS4S_ModuleInfoGetId(app->ss4s.selection.audio_module));
-    lv_label_set_text_fmt(controller->stats_items.rtt, "%d ms (var. %d ms)", dst->rtt, dst->rttVariance);
+    if (dst->rtt > max_rtt) {
+        max_rtt = dst->rtt;
+    }
+    lv_label_set_text_fmt(controller->stats_items.rtt, "%d ms (var. %d ms, max. %d ms)", dst->rtt, dst->rttVariance, max_rtt);
     lv_label_set_text_fmt(controller->stats_items.net_fps, "%.2f FPS", dst->receivedFps);
 
     if (dst->submittedFrames) {
@@ -127,6 +131,7 @@ static void constructor(lv_fragment_t *self, void *args) {
     current_controller = controller;
 
     overlay_showing = false;
+    max_rtt = 0;
 
     streaming_styles_init(controller);
 
