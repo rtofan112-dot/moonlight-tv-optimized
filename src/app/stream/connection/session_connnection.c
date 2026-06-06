@@ -6,6 +6,9 @@
 #include "input/input_gamepad.h"
 #include "app.h"
 #include "stream/session_priv.h"
+#include <SDL.h>
+
+static uint32_t connection_start_ticks = 0;
 
 static session_t *current_session = NULL;
 
@@ -34,7 +37,9 @@ static void connection_status_update(int status) {
             break;
         case CONN_STATUS_POOR:
             commons_log_warn("Session", "Connection is poor");
-            streaming_notice_show(locstr("Unstable connection."));
+            if (SDL_GetTicks() - connection_start_ticks > 5000) {
+                streaming_notice_show(locstr("Unstable connection."));
+            }
             break;
         default:
             break;
@@ -89,6 +94,7 @@ CONNECTION_LISTENER_CALLBACKS connection_callbacks = {
 
 CONNECTION_LISTENER_CALLBACKS *session_connection_callbacks_prepare(session_t *session) {
     current_session = session;
+    connection_start_ticks = SDL_GetTicks();
     return &connection_callbacks;
 }
 
