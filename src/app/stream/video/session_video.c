@@ -34,8 +34,7 @@ static int vdec_stream_format = 0;
 VIDEO_STATS vdec_summary_stats;
 VIDEO_INFO vdec_stream_info;
 
-void SS4S_NDL_webOS5_SetPresentationTime(uint32_t presentation_time_ms);
-uint32_t SS4S_NDL_webOS5_GetTornFrames(void);
+volatile uint32_t g_ndl_session_torn_frames = 0;
 
 static uint32_t session_network_dropped_frames = 0;
 static uint32_t session_micro_stutters = 0;
@@ -205,8 +204,6 @@ int vdec_delegate_submit(PDECODE_UNIT decodeUnit) {
     vdec_temp_stats.totalReassemblyTime += decodeUnit->enqueueTimeMs - decodeUnit->receiveTimeMs;
     vdec_stream_info.has_host_latency |= decodeUnit->frameHostProcessingLatency > 0;
     
-    SS4S_NDL_webOS5_SetPresentationTime(decodeUnit->presentationTimeMs);
-    
     SS4S_VideoFeedFlags flags = SS4S_VIDEO_FEED_DATA_FRAME_START | SS4S_VIDEO_FEED_DATA_FRAME_END;
     if (decodeUnit->frameType == FRAME_TYPE_IDR) {
         flags |= SS4S_VIDEO_FEED_DATA_KEYFRAME;
@@ -247,7 +244,7 @@ void vdec_stat_submit(const struct VIDEO_STATS *src, unsigned long now) {
     dst->sessionDroppedFrames = session_network_dropped_frames;
     dst->sessionMicroStutters = session_micro_stutters;
     dst->sessionHeavyStutters = session_heavy_stutters;
-    dst->sessionTornFrames = SS4S_NDL_webOS5_GetTornFrames();
+    dst->sessionTornFrames = g_ndl_session_torn_frames;
     unsigned long delta = now - dst->measurementStartTimestamp;
     if (delta <= 0) { return; }
     dst->totalFps = (float) dst->totalFrames / ((float) delta / 1000);
