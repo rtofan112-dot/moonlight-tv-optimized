@@ -131,6 +131,7 @@ lv_obj_t *streaming_scene_create(lv_fragment_t *self, lv_obj_t *parent) {
     controller->stats_items.net_fps = stat_label(stats, "Network framerate");
     controller->stats_items.drop_rate = stat_label(stats, "Network frame drop");
     controller->stats_items.stutters = stat_label(stats, "Stutters (micro/heavy)");
+    controller->stats_items.tearing = stat_label(stats, "Torn frames (tearing)");
     controller->stats_items.host_latency = stat_label(stats, "Host processing latency");
     controller->stats_items.vdec_latency = stat_label(stats, "Decoder latency");
 

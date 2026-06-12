@@ -3,6 +3,10 @@
 #include "highend_check.h"
 #include "max_res.h"
 
+static bool g_pacing_initialized = false;
+static uint64_t g_initial_local_pts = 0;
+static uint32_t g_initial_presentation_time = 0;
+
 static SS4S_VideoOpenResult ReloadWithSize(SS4S_PlayerContext *context, int width, int height);
 
 static uint64_t GetTimeUs();
@@ -33,6 +37,7 @@ static SS4S_VideoOpenResult OpenVideo(const SS4S_VideoInfo *info, const SS4S_Vid
     (void) extraInfo;
     SS4S_NDL_webOS5_Log(SS4S_LogLevelInfo, "NDL", "OpenVideo called");
     pthread_mutex_lock(&SS4S_NDL_webOS5_Lock);
+    g_pacing_initialized = false;
     memset(&context->mediaInfo.video, 0, sizeof(context->mediaInfo.video));
     SS4S_VideoOpenResult result;
     switch (info->codec) {
@@ -79,8 +84,37 @@ static SS4S_VideoFeedResult FeedVideo(SS4S_VideoInstance *instance, const unsign
     if (!context->mediaLoaded) {
         return SS4S_VIDEO_FEED_NOT_READY;
     }
-    // Передаем pts со сдвигом +10мс для компенсации времени декодирования и включения VSync
-    uint64_t pts = SS4S_NDL_webOS5_GetPts(context) + 10;
+    
+    extern volatile uint32_t g_ndl_last_presentation_time_ms;
+    extern volatile uint32_t g_ndl_session_torn_frames;
+    
+    uint64_t local_now = SS4S_NDL_webOS5_GetPts(context);
+    uint32_t current_pres = g_ndl_last_presentation_time_ms;
+    
+    if (!g_pacing_initialized || current_pres < g_initial_presentation_time) {
+        g_initial_local_pts = local_now;
+        g_initial_presentation_time = current_pres;
+        g_pacing_initialized = true;
+    }
+    
+    uint64_t ideal_pts = g_initial_local_pts + (current_pres - g_initial_presentation_time);
+    
+    // Если сетевой лаг слишком велик, или если часы рассинхронизировались
+    // (например, идеальный PTS отстает от текущего времени более чем на 16 мс,
+    // или опережает текущее время более чем на 100 мс)
+    if (local_now > ideal_pts + 16 || ideal_pts > local_now + 100) {
+        g_initial_local_pts = local_now;
+        g_initial_presentation_time = current_pres;
+        ideal_pts = local_now;
+    }
+    
+    // Сдвиг +8 мс для компенсации времени декодирования
+    uint64_t pts = ideal_pts + 8;
+    
+    if (pts < local_now) {
+        g_ndl_session_torn_frames++;
+    }
+
     int rc = NDL_DirectVideoPlay((void *) data, size, (long long) pts);
     if (rc != 0) {
         SS4S_NDL_webOS5_Log(SS4S_LogLevelWarn, "NDL", "NDL_DirectVideoPlay returned %d: %s", rc,

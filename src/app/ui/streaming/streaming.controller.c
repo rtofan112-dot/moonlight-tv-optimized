@@ -93,6 +93,7 @@ bool streaming_refresh_stats() {
                               dst->sessionDroppedFrames);
         lv_label_set_text_fmt(controller->stats_items.stutters, "%u / %u",
                               dst->sessionMicroStutters, dst->sessionHeavyStutters);
+        lv_label_set_text_fmt(controller->stats_items.tearing, "%u", dst->sessionTornFrames);
         if (vdec_stream_info.has_host_latency) {
             float avgCapLatency = (float) dst->totalCaptureLatency / (float) dst->submittedFrames / 10.0f;
             lv_label_set_text_fmt(controller->stats_items.host_latency, "avg %.2f ms", avgCapLatency);
@@ -113,6 +114,7 @@ bool streaming_refresh_stats() {
     } else {
         lv_label_set_text(controller->stats_items.drop_rate, "-");
         lv_label_set_text(controller->stats_items.stutters, "-");
+        lv_label_set_text(controller->stats_items.tearing, "-");
         lv_label_set_text_fmt(controller->stats_items.host_latency, "-");
         lv_label_set_text_fmt(controller->stats_items.vdec_latency, "-");
     }

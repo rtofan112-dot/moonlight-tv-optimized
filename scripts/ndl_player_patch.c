@@ -40,6 +40,17 @@ int SS4S_NDL_webOS5_UnloadMedia(SS4S_PlayerContext *context) {
     return UnloadMedia(context);
 }
 
+volatile uint32_t g_ndl_last_presentation_time_ms = 0;
+volatile uint32_t g_ndl_session_torn_frames = 0;
+
+void SS4S_NDL_webOS5_SetPresentationTime(uint32_t presentation_time_ms) {
+    g_ndl_last_presentation_time_ms = presentation_time_ms;
+}
+
+uint32_t SS4S_NDL_webOS5_GetTornFrames(void) {
+    return g_ndl_session_torn_frames;
+}
+
 uint64_t SS4S_NDL_webOS5_GetPts(const SS4S_PlayerContext *context) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -120,6 +131,7 @@ static int LoadMedia(SS4S_PlayerContext *context) {
         SS4S_OpusEmptyFeed(context->opusEmpty, OpusFeedEmpty, context);
     }
 
+    g_ndl_session_torn_frames = 0;
     context->mediaLoaded = true;
     clock_gettime(CLOCK_MONOTONIC, &context->mediaLoadedTime);
     return ret;

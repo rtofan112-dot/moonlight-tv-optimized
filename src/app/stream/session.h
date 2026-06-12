@@ -41,6 +41,7 @@ typedef struct VIDEO_STATS {
     uint32_t sessionDroppedFrames;
     uint32_t sessionMicroStutters;
     uint32_t sessionHeavyStutters;
+    uint32_t sessionTornFrames;
 } VIDEO_STATS;
 
 typedef struct VIDEO_INFO {
