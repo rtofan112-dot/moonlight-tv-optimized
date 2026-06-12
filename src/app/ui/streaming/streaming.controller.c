@@ -88,8 +88,11 @@ bool streaming_refresh_stats() {
     lv_label_set_text_fmt(controller->stats_items.net_fps, "%.2f FPS", dst->receivedFps);
 
     if (dst->submittedFrames) {
-        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%%",
-                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100);
+        lv_label_set_text_fmt(controller->stats_items.drop_rate, "%.2f%% (total: %u)",
+                              (float) dst->networkDroppedFrames / (float) dst->totalFrames * 100,
+                              dst->sessionDroppedFrames);
+        lv_label_set_text_fmt(controller->stats_items.stutters, "%u / %u",
+                              dst->sessionMicroStutters, dst->sessionHeavyStutters);
         if (vdec_stream_info.has_host_latency) {
             float avgCapLatency = (float) dst->totalCaptureLatency / (float) dst->submittedFrames / 10.0f;
             lv_label_set_text_fmt(controller->stats_items.host_latency, "avg %.2f ms", avgCapLatency);
@@ -109,6 +112,7 @@ bool streaming_refresh_stats() {
         }
     } else {
         lv_label_set_text(controller->stats_items.drop_rate, "-");
+        lv_label_set_text(controller->stats_items.stutters, "-");
         lv_label_set_text_fmt(controller->stats_items.host_latency, "-");
         lv_label_set_text_fmt(controller->stats_items.vdec_latency, "-");
     }

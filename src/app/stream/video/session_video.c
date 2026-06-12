@@ -34,6 +34,12 @@ static int vdec_stream_format = 0;
 VIDEO_STATS vdec_summary_stats;
 VIDEO_INFO vdec_stream_info;
 
+static uint32_t session_network_dropped_frames = 0;
+static uint32_t session_micro_stutters = 0;
+static uint32_t session_heavy_stutters = 0;
+static uint64_t last_submit_time = 0;
+static int target_fps = 60;
+
 static int vdec_delegate_setup(int videoFormat, int width, int height, int redrawRate, void *context, int drFlags);
 
 static void vdec_delegate_cleanup();
@@ -69,7 +75,6 @@ static const char *video_format_name(int videoFormat) {
 }
 
 int vdec_delegate_setup(int videoFormat, int width, int height, int redrawRate, void *context, int drFlags) {
-    (void) redrawRate;
     (void) drFlags;
     session = context;
     player = session->player;
@@ -80,6 +85,12 @@ int vdec_delegate_setup(int videoFormat, int width, int height, int redrawRate, 
     vdec_stream_format = videoFormat;
     vdec_stream_info.format = video_format_name(videoFormat);
     lastFrameNumber = 0;
+    
+    session_network_dropped_frames = 0;
+    session_micro_stutters = 0;
+    session_heavy_stutters = 0;
+    last_submit_time = 0;
+    target_fps = redrawRate;
     SS4S_VideoInfo info = {
             .width = width,
             .height = height,
@@ -155,11 +166,26 @@ int vdec_delegate_submit(PDECODE_UNIT decodeUnit) {
         vdec_temp_stats.measurementStartTimestamp = ticksms;
         lastFrameNumber = decodeUnit->frameNumber;
     } else {
-        // Any frame number greater than m_LastFrameNumber + 1 represents a dropped frame
-        vdec_temp_stats.networkDroppedFrames += decodeUnit->frameNumber - (lastFrameNumber + 1);
-        vdec_temp_stats.totalFrames += decodeUnit->frameNumber - (lastFrameNumber + 1);
+        int dropped = decodeUnit->frameNumber - (lastFrameNumber + 1);
+        if (dropped > 0) {
+            vdec_temp_stats.networkDroppedFrames += dropped;
+            session_network_dropped_frames += dropped;
+        }
+        vdec_temp_stats.totalFrames += dropped;
         lastFrameNumber = decodeUnit->frameNumber;
     }
+
+    uint64_t now_ms = LiGetMillis();
+    if (last_submit_time > 0) {
+        uint64_t interval = now_ms - last_submit_time;
+        double target_interval = 1000.0 / (target_fps > 0 ? target_fps : 60);
+        if (interval > (uint64_t)(target_interval * 2.0)) {
+            session_heavy_stutters++;
+        } else if (interval > (uint64_t)(target_interval * 1.3)) {
+            session_micro_stutters++;
+        }
+    }
+    last_submit_time = now_ms;
     // Flip stats windows roughly every second
     if (ticksms - vdec_temp_stats.measurementStartTimestamp > 1000) {
         vdec_stat_submit(&vdec_temp_stats, ticksms);
@@ -212,6 +238,9 @@ int vdec_delegate_submit(PDECODE_UNIT decodeUnit) {
 void vdec_stat_submit(const struct VIDEO_STATS *src, unsigned long now) {
     struct VIDEO_STATS *dst = &vdec_summary_stats;
     memcpy(dst, src, sizeof(struct VIDEO_STATS));
+    dst->sessionDroppedFrames = session_network_dropped_frames;
+    dst->sessionMicroStutters = session_micro_stutters;
+    dst->sessionHeavyStutters = session_heavy_stutters;
     unsigned long delta = now - dst->measurementStartTimestamp;
     if (delta <= 0) { return; }
     dst->totalFps = (float) dst->totalFrames / ((float) delta / 1000);
