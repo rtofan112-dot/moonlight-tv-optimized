@@ -4,7 +4,7 @@
     "vendor": "Mariotaku Lee",
     "type": "native",
     "main": "bin/moonlight",
-    "title": "Moonlight (Rev 11)",
+    "title": "Moonlight (Rev 12)",
     "icon": "icon.png",
     "iconColor": "#ffffff",
     "largeIcon": "icon_large.png",

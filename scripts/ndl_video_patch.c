@@ -83,8 +83,9 @@ static SS4S_VideoOpenResult OpenVideo(const SS4S_VideoInfo *info, const SS4S_Vid
     if (result != SS4S_VIDEO_OPEN_OK) {
         goto finish;
     }
-    NDL_DirectVideoSetFrameDropThreshold(30);
-    SS4S_NDL_webOS5_Log(SS4S_LogLevelInfo, "NDL", "Called NDL_DirectVideoSetFrameDropThreshold(30) for low latency VSync");
+    int threshold = (int)(g_frame_interval_ms * 1.25);
+    NDL_DirectVideoSetFrameDropThreshold(threshold);
+    SS4S_NDL_webOS5_Log(SS4S_LogLevelInfo, "NDL", "Called NDL_DirectVideoSetFrameDropThreshold(%d) for low latency VSync", threshold);
     *instance = (SS4S_VideoInstance *) context;
     result = SS4S_VIDEO_OPEN_OK;
 
@@ -103,9 +104,10 @@ static SS4S_VideoFeedResult FeedVideo(SS4S_VideoInstance *instance, const unsign
     }
     
     uint64_t local_now = SS4S_NDL_webOS5_GetPts(context);
+    double offset = SS4S_webOS_Is_HighEnd_SoC() ? 8.0 : 12.0;
     
     if (!g_pacing_initialized) {
-        g_next_pts = (double)local_now + 8.0;
+        g_next_pts = (double)local_now + offset;
         g_pacing_initialized = true;
     } else {
         g_next_pts += g_frame_interval_ms;
@@ -113,7 +115,7 @@ static SS4S_VideoFeedResult FeedVideo(SS4S_VideoInstance *instance, const unsign
     
     // Если сетевой лаг слишком велик, или часы рассинхронизировались
     if ((double)local_now > g_next_pts + g_frame_interval_ms || g_next_pts > (double)local_now + 100.0) {
-        g_next_pts = (double)local_now + 8.0;
+        g_next_pts = (double)local_now + offset;
     }
     
     uint64_t pts = (uint64_t)g_next_pts;
